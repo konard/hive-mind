@@ -118,6 +118,13 @@ if (argv.tool === 'opencode') {
 } else if (argv.tool === 'openai') {
   const openaiLib = await import('./openai.lib.mjs');
   checkForUncommittedChanges = openaiLib.checkForUncommittedChanges;
+  // OpenAI-compatible mode cannot run shell commands to create PRs/commits by itself.
+  // To ensure the workflow functions correctly, enforce auto PR creation when not in dry-run.
+  if (!argv.dryRun && argv.autoPullRequestCreation === false) {
+    await log('');
+    await log('🔧 OpenAI mode: Forcing auto PR creation (OpenAI cannot create PRs itself)');
+    argv.autoPullRequestCreation = true;
+  }
 } else {
   checkForUncommittedChanges = claudeLib.checkForUncommittedChanges;
 }
