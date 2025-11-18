@@ -242,6 +242,12 @@ export const createYargsConfig = (yargsInstance) => {
 
 // Parse command line arguments - now needs yargs and hideBin passed in
 export const parseArguments = async (yargs, hideBin) => {
+  // Если hideBin не передан, импортируем его напрямую
+  if (typeof hideBin !== 'function') {
+    const { hideBin: importedHideBin } = await import('yargs/helpers');
+    hideBin = importedHideBin;
+  }
+
   const rawArgs = hideBin(process.argv);
   // Use .parse() instead of .argv to ensure .strict() mode works correctly
   // When you call yargs(args) and use .argv, strict mode doesn't trigger
