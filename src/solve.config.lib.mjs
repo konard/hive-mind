@@ -90,6 +90,16 @@ export const createYargsConfig = (yargsInstance) => {
       type: 'string',
       description: 'API key (Bearer token) for OpenAI-compatible endpoint'
     })
+    .option('openai-max-tokens', {
+      type: 'number',
+      description: 'Max tokens for OpenAI-compatible completions (default: 2048)',
+      default: 2048
+    })
+    .option('openai-temperature', {
+      type: 'number',
+      description: 'Temperature for OpenAI-compatible completions (default: 0)',
+      default: 0
+    })
     .option('auto-pull-request-creation', {
       type: 'boolean',
       description: 'Automatically create a draft pull request before running Claude',
@@ -144,8 +154,12 @@ export const createYargsConfig = (yargsInstance) => {
     })
     .option('auto-commit-uncommitted-changes', {
       type: 'boolean',
-      description: 'Automatically commit and push uncommitted changes made by Claude (disabled by default)',
-      default: false
+      description: 'Automatically commit and push uncommitted changes made by the tool',
+      // In OpenAI mode there is no shell execution to create commits by itself,
+      // so enable auto-commit by default to persist response artifacts and visible diffs.
+      default: (currentParsedArgs) => {
+        return currentParsedArgs?.tool === 'openai' ? true : false;
+      }
     })
     .option('auto-restart-on-uncommitted-changes', {
       type: 'boolean',
