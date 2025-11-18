@@ -90,6 +90,16 @@ export const createYargsConfig = (yargsInstance) => {
       type: 'string',
       description: 'API key (Bearer token) for OpenAI-compatible endpoint'
     })
+    .option('openai-max-tokens', {
+      type: 'number',
+      description: 'Max tokens for OpenAI-compatible completions (default: 2048)',
+      default: 2048
+    })
+    .option('openai-temperature', {
+      type: 'number',
+      description: 'Temperature for OpenAI-compatible completions (default: 0)',
+      default: 0
+    })
     .option('auto-pull-request-creation', {
       type: 'boolean',
       description: 'Automatically create a draft pull request before running Claude',

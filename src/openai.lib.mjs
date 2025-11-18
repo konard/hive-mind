@@ -5,6 +5,11 @@
 if (typeof globalThis.use === 'undefined') {
   globalThis.use = (await eval(await (await fetch('https://unpkg.com/use-m/use.js')).text())).use;
 }
+const use = globalThis.use;
+// Command runner and fs/path helpers
+const { $ } = await use('command-stream');
+const fs = (await use('fs')).promises;
+const path = (await use('path')).default;
 
 // Note: No filesystem operations are needed here; keep deps minimal
 
@@ -150,7 +155,10 @@ export const executeOpenAI = async (params) => {
       model: mapModelToId(argv.model),
       messages,
       // Non-streaming for simplicity and robustness
-      stream: false
+      stream: false,
+      // Provide sane defaults many providers expect
+      max_tokens: Number(argv.openaiMaxTokens || 2048),
+      temperature: argv.openaiTemperature !== undefined ? Number(argv.openaiTemperature) : 0
     };
 
     await log(`\n${formatAligned('📝', 'HTTP:', '')}`);
@@ -175,8 +183,9 @@ export const executeOpenAI = async (params) => {
     // Try to parse JSON and log assistant content
     let json;
     try { json = JSON.parse(text); } catch { json = null; }
+    let content = '';
     if (json && json.choices && json.choices.length > 0) {
-      const content = json.choices[0]?.message?.content || '';
+      content = json.choices[0]?.message?.content || '';
       if (content) {
         await log(`\n${formatAligned('▶️', 'Response:', '')}\n`);
         await log(content);
@@ -185,6 +194,44 @@ export const executeOpenAI = async (params) => {
       // If not standard shape, still print raw
       await log(`\n${formatAligned('▶️', 'Raw response:', '')}\n`);
       await log(text);
+    }
+
+    // Optionally persist response as a work artifact and commit it.
+    // This helps ensure visible commits/PR diffs in OpenAI mode when enabled by user flag.
+    try {
+      if (content && argv['auto-commit-uncommitted-changes']) {
+        const outFile = path.join(tempDir, 'OPENAI_RESPONSE.md');
+        const timestamp = new Date().toISOString();
+        const header = `# OpenAI-Compatible Response\n\n- Model: ${argv.model}\n- Time: ${timestamp}\n- Issue: ${issueUrl || (issueNumber ? `${owner}/${repo}#${issueNumber}` : 'n/a')}\n- PR: ${prUrl || (prNumber ? `https://github.com/${owner}/${repo}/pull/${prNumber}` : 'n/a')}\n\n---\n\n`;
+        // Append if exists to accumulate iterations
+        const existing = await fs.readFile(outFile, 'utf8').catch(() => null);
+        const newContent = header + content + '\n';
+        const finalContent = existing ? (existing.trimEnd() + '\n\n---\n\n' + newContent) : newContent;
+        await fs.writeFile(outFile, finalContent, 'utf8');
+
+        // Commit and push the artifact
+        const addRes = await $({ cwd: tempDir })`git add ${path.basename(outFile)} 2>&1`;
+        if (addRes.code === 0) {
+          const commitMsg = 'Add OpenAI-compatible response artifact';
+          const commitRes = await $({ cwd: tempDir })`git commit -m ${commitMsg} 2>&1`;
+          if (commitRes.code === 0) {
+            await log('✅ OpenAI response saved and committed');
+            const pushRes = await $({ cwd: tempDir })`git push origin ${branchName} 2>&1`;
+            if (pushRes.code === 0) {
+              await log('✅ OpenAI response pushed to remote');
+            } else {
+              await log(`⚠️ Warning: Could not push OpenAI response: ${(pushRes.stderr || pushRes.stdout || '').toString().trim()}`, { level: 'warning' });
+            }
+          } else {
+            await log(`⚠️ Warning: Could not commit OpenAI response: ${(commitRes.stderr || commitRes.stdout || '').toString().trim()}`, { level: 'warning' });
+          }
+        } else {
+          await log(`⚠️ Warning: Could not stage OpenAI response: ${(addRes.stderr || addRes.stdout || '').toString().trim()}`, { level: 'warning' });
+        }
+      }
+    } catch (persistError) {
+      // Non-fatal: log and continue
+      await log(`⚠️ Warning: Failed to persist OpenAI response: ${persistError.message}`, { level: 'warning' });
     }
 
     const resourcesAfter = await getResourceSnapshot();

@@ -297,6 +297,7 @@ solve https://github.com/owner/repo/issues/123 --tool openai --model gpt-4o
 Notes:
 - `--dry-run` and `--skip-tool-check` let you exercise the flow without contacting the endpoint (useful for CI/scripts).
 - When used from `hive`, pass `--tool openai` and optionally `--model gpt-4o`; defaults apply if omitted.
+- To record progress as commits in OpenAI mode, enable `--auto-commit-uncommitted-changes` — the assistant response is saved to `OPENAI_RESPONSE.md`, committed, and pushed to your branch automatically.
 
 ## 🔧 hive Options
 ```bash
