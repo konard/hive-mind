@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-
+import  getenv  from "getenv";
 /**
  * Central configuration module for all configurable values
  * Provides environment variable overrides with sensible defaults
@@ -18,7 +18,6 @@ if (typeof globalThis.use === 'undefined') {
   }
 }
 
-const getenv = await use('getenv');
 
 // Import lino for parsing Links Notation format
 const { lino } = await import('./lino.lib.mjs');
